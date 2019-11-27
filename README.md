@@ -30,5 +30,6 @@ gpu版：pip install https://index.taskcluster.net/v1/task/project.deepspeech.de
 
 # 测试结果
 100条数据堂电话语音数据上平均字错率0.02，句错率0.06
-详细见recongnnize_result.txt
+
+详细见./test_result/recongnnize_result.txt
 
