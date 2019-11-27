@@ -58,7 +58,6 @@ def trans_compute(audio_list):
     return prediction
 
 
-@profile(precision=4,stream=open('memory_profiler.log','w+'))
 def trans_entrance(audio_path):
     text = trans_compute([audio_path])
     return text

@@ -14,6 +14,48 @@ from utils import conv_output_length
 import numpy
 import keras.regularizers as regularizers
 logger = logging.getLogger(__name__)
+from multi_gpu import ParallelModel
+
+
+def decode_ctc_fn(model):
+
+    network_output = model.outputs[0]
+    ctc_input_lengths = K.placeholder(ndim=1, dtype='int32')
+
+    ctc_decode = K.ctc_decode(network_output, ctc_input_lengths, greedy=True)
+    decode_fn = K.function([network_output, ctc_input_lengths], [ctc_decode[0][0]])
+
+    return decode_fn
+
+
+def compile_train_fn(model, learning_rate=1e-5):
+    """ Build the CTC training routine for speech models.
+    Args:
+        model: A keras model (built=True) instance
+    Returns:
+        train_fn (theano.function): Function that takes in acoustic inputs,
+            and updates the model. Returns network outputs and ctc cost
+    """
+    logger.info("Building train_fn")
+    acoustic_input = model.inputs[0]
+    network_output = model.outputs[0]
+    label = K.placeholder(ndim=2, dtype='int32')
+    label_lens = K.placeholder(ndim=2, dtype='int32')
+    ctc_input_lengths = K.placeholder(ndim=2, dtype='int32')
+
+    # ctc_cost = K.mean(K.ctc_batch_cost(label, network_output, ctc_input_lengths, label_lens))
+    ctc_cost = K.ctc_batch_cost(label, network_output, ctc_input_lengths, label_lens)
+    
+    trainable_vars = model.trainable_weights
+
+    optimz = Adam(lr = 1e-4, beta_1 = 0.9, beta_2 = 0.999, decay = 0.0, epsilon = 10e-8)    
+    # optimz = SGD(lr=1e-03, clipnorm=100, decay=1e-6, momentum=0.9, nesterov=True)
+    updates = list(optimz.get_updates(trainable_vars, [], ctc_cost))
+    train_fn = K.function([acoustic_input, ctc_input_lengths, label, label_lens,
+                           K.learning_phase()],
+                          [network_output, ctc_cost],
+                          updates)
+    return train_fn
 
 
 def compile_test_fn(model):
@@ -27,12 +69,16 @@ def compile_test_fn(model):
     logger.info("Building val_fn")
     acoustic_input = model.inputs[0]
     network_output = model.outputs[0]
+    label = K.placeholder(ndim=2, dtype='int32')
+    label_lens = K.placeholder(ndim=2, dtype='int32')
     ctc_input_lengths = K.placeholder(ndim=2, dtype='int32')
 
+    # ctc_cost = K.mean(K.ctc_batch_cost(label, network_output, ctc_input_lengths, label_lens))
+    ctc_cost = K.ctc_batch_cost(label, network_output, ctc_input_lengths, label_lens)
 
-    val_fn = K.function([acoustic_input, ctc_input_lengths,
+    val_fn = K.function([acoustic_input, ctc_input_lengths, label, label_lens,
                         K.learning_phase()],
-                        [network_output])
+                        [network_output, ctc_cost])
     return val_fn
 
 
@@ -54,7 +100,8 @@ def compile_gru_model(input_dim=101, output_dim=4563, recur_layers=3, nodes=1000
                         subsample_length=conv_stride, init=initialization,
                         activation='relu')(acoustic_input)
     if batch_norm:
-        output = normalization.BatchNormalization(name='bn_conv_1d')(conv_1d, training=True)
+        output = normalization.BatchNormalization(name='bn_conv_1d')(conv_1d, training=False)
+        # output = normalization.BatchNormalization(name='bn_conv_1d')(conv_1d)
     else:
         output = conv_1d
 
@@ -64,8 +111,9 @@ def compile_gru_model(input_dim=101, output_dim=4563, recur_layers=3, nodes=1000
         #              return_sequences=True)(output)
         output = Bidirectional(GRU(nodes, return_sequences=True),name='bi_lstm_{}'.format(r + 1))(output)
         if batch_norm:
-            bn_layer = normalization.BatchNormalization(name='bn_rnn_{}'.format(r + 1),moving_mean_initializer='zeros')
-            output = bn_layer(output, training=True)
+            bn_layer = normalization.BatchNormalization(name='bn_rnn_{}'.format(r + 1))
+            output = bn_layer(output, training=False)
+            #output = bn_layer(output)
 
     network_output = TimeDistributed(Dense(
         output_dim+1, name='dense', activation='softmax', init=initialization,

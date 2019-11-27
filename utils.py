@@ -1,5 +1,4 @@
 # -*-coding:utf-8-*-
-from io import BytesIO
 import glob
 import logging
 import os
@@ -20,7 +19,10 @@ def ctc_input_length(model, input_lengths):
     conv_class = (getattr(keras.layers, 'Conv1D', None) or
                   keras.layers.Convolution1D)
     conv_lays = [l for l in model.layers if isinstance(l, conv_class)]
-    
+    #print('input_lengths:'+str(input_lengths))
+    #print([[conv_chain_output_length(l, conv_lays)] for l in input_lengths])
+    #import sys
+    #sys.exit()
     return [[conv_chain_output_length(l, conv_lays)] for l in input_lengths]
 
 
@@ -31,16 +33,11 @@ def conv_chain_output_length(input_length, conv_layers):
         conv_layers (list(Convolution1D)): List of keras Convolution1D layers
     """
     length = input_length
-
-    #print("input_lenth:"+str(length))
     for layer in conv_layers:
-        
         if k2:
             length = layer.compute_output_shape((None, length, None))[1]
-            
         else:
             length = layer.get_output_shape_for((None, length))[1]
-    #print("ctc_lenth:"+str(length))
     return length - 2
 
 
@@ -137,7 +134,6 @@ def spectrogram_from_file(filename, step=10, window=25, max_freq=None,
             [0, max_freq] are returned
         eps (float): Small value to ensure numerical stability (for ln(x))
     """
-    #with soundfile.SoundFile(BytesIO(filename)) as sound_file:
     with soundfile.SoundFile(filename) as sound_file:
         audio = sound_file.read(dtype='float32')
         sample_rate = sound_file.samplerate
@@ -239,7 +235,6 @@ def argmax_decode_1(prediction):
 
 
 def argmax_decode(prediction, decode_fn, ctc_input_lens):
-    """贪婪搜索"""
     
     y_pred = prediction[:, 2:, :]
     input_length = np.array(ctc_input_lens)
