@@ -1,3 +1,4 @@
+
 # deepspeech 环境搭建
 新建虚拟环境：conda create -n tensorflow python=3.6
 激活虚拟环境：source activate tensorflow
