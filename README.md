@@ -29,7 +29,7 @@
 调整后准确率平均提升2个百分点
 
 ## 4.	增加n-gram解码模块
-新模型使用现在GitHub 上比较热门的mozilla基金会的实现，在权威性、准确率和性能方面都比老模型好很多，调整后准确率平均提升6个百分点
+新模型的解码模块使用现在GitHub 上比较热门的mozilla基金会的实现，在权威性、准确率和性能方面都比之前deepspeech好很多，调整后准确率平均提升6个百分点
 
 
 
@@ -54,6 +54,8 @@
 gpu版：pip install https://index.taskcluster.net/v1/task/project.deepspeech.deepspeech.native_client.v0.5.0-alpha.11.cpu-ctc/artifacts/public/ds_ctcdecoder-0.5.0a11-cp35-cp35m-manylinux1_x86_64.whl
 
 5.读字节流：pip install -i https://pypi.tuna.tsinghua.edu.cn/simple pydub
+
+
 
 # 模型部署
 ./speech_model里面放入训练好的pb模型，和训练集的std、mean数据
