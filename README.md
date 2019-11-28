@@ -33,3 +33,7 @@ gpu版：pip install https://index.taskcluster.net/v1/task/project.deepspeech.de
 
 详细见./test_result/recongnnize_result.txt
 
+# 说明
+master分支是部署代码
+
+train分支是训练代码
